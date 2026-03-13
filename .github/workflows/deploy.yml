@@ -3,14 +3,14 @@ name: Deploy
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH deploy
+      - name: SSHデプロイ
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
