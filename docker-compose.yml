@@ -9,5 +9,5 @@ services:
     environment:
       HOST: "0.0.0.0"
       PORT: "4321"
-    sysctls:
-      - net.ipv4.ip_unprivileged_port_start=0
+    security_opt:
+      - apparmor=unconfined
