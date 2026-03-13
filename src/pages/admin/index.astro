@@ -1,0 +1,183 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getDb, getFeeds, getCategories } from "../../lib/db";
+
+const db = getDb();
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const action = form.get("action");
+
+  if (action === "add_feed") {
+    const url = String(form.get("url") ?? "").trim();
+    const categoryId = form.get("category_id")
+      ? Number(form.get("category_id"))
+      : null;
+    if (url)
+      db.prepare(
+        "INSERT OR IGNORE INTO feeds (url, category_id) VALUES (?, ?)",
+      ).run(url, categoryId);
+  }
+  if (action === "delete_feed") {
+    db.prepare("DELETE FROM feeds WHERE id = ?").run(Number(form.get("id")));
+  }
+  if (action === "add_category") {
+    const name = String(form.get("name") ?? "").trim();
+    const color = String(form.get("color") ?? "#58a6ff");
+    if (name)
+      db.prepare(
+        "INSERT OR IGNORE INTO categories (name, color) VALUES (?, ?)",
+      ).run(name, color);
+  }
+  if (action === "delete_category") {
+    db.prepare("DELETE FROM categories WHERE id = ?").run(
+      Number(form.get("id")),
+    );
+  }
+
+  return Astro.redirect("/admin");
+}
+
+const feeds = getFeeds();
+const categories = getCategories();
+---
+
+<Base title="管理 — RSS Reader">
+  <div class="max-w-3xl">
+    <h1 class="text-xl font-semibold mb-8">管理画面</h1>
+
+    <section class="mb-10">
+      <h2 class="text-sm font-mono text-muted uppercase tracking-widest mb-4">
+        カテゴリ
+      </h2>
+      <form method="POST" class="flex gap-2 mb-4">
+        <input type="hidden" name="action" value="add_category" />
+        <input
+          type="text"
+          name="name"
+          placeholder="カテゴリ名"
+          required
+          class="flex-1 bg-surface-2 border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent transition-colors"
+        />
+        <input
+          type="color"
+          name="color"
+          value="#58a6ff"
+          class="h-9 w-12 rounded border border-border bg-surface-2 cursor-pointer p-0.5"
+        />
+        <button
+          type="submit"
+          class="px-4 py-2 bg-surface-3 border border-border rounded text-sm hover:border-accent transition-colors"
+        >
+          追加
+        </button>
+      </form>
+      {
+        categories.length === 0 ? (
+          <p class="text-sm text-muted py-4 text-center border border-dashed border-border rounded">
+            カテゴリがまだありません
+          </p>
+        ) : (
+          <ul class="space-y-2">
+            {categories.map((cat) => (
+              <li class="flex items-center justify-between bg-surface-1 border border-border rounded px-4 py-2.5">
+                <span class="flex items-center gap-2 text-sm">
+                  <span
+                    class="w-3 h-3 rounded-full"
+                    style={`background:${cat.color}`}
+                  />
+                  {cat.name}
+                </span>
+                <form method="POST">
+                  <input type="hidden" name="action" value="delete_category" />
+                  <input type="hidden" name="id" value={cat.id} />
+                  <button
+                    type="submit"
+                    class="text-xs text-muted hover:text-red-400 transition-colors font-mono"
+                    onclick="return confirm('削除しますか？')"
+                  >
+                    削除
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
+
+    <section>
+      <h2 class="text-sm font-mono text-muted uppercase tracking-widest mb-4">
+        フィード
+      </h2>
+      <form method="POST" class="flex gap-2 mb-4">
+        <input type="hidden" name="action" value="add_feed" />
+        <input
+          type="url"
+          name="url"
+          placeholder="https://example.com/feed.xml"
+          required
+          class="flex-1 bg-surface-2 border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent transition-colors"
+        />
+        <select
+          name="category_id"
+          class="bg-surface-2 border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent transition-colors"
+        >
+          <option value="">カテゴリなし</option>
+          {categories.map((cat) => <option value={cat.id}>{cat.name}</option>)}
+        </select>
+        <button
+          type="submit"
+          class="px-4 py-2 bg-accent text-surface-0 rounded text-sm font-medium hover:bg-accent/90 transition-colors"
+        >
+          追加
+        </button>
+      </form>
+      {
+        feeds.length === 0 ? (
+          <p class="text-sm text-muted py-4 text-center border border-dashed border-border rounded">
+            フィードがまだありません
+          </p>
+        ) : (
+          <ul class="space-y-2">
+            {feeds.map((feed) => (
+              <li class="flex items-center justify-between bg-surface-1 border border-border rounded px-4 py-2.5 gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm truncate">
+                    {feed.title || (
+                      <span class="text-muted">(タイトル未取得)</span>
+                    )}
+                  </p>
+                  <p class="text-xs text-muted font-mono truncate mt-0.5">
+                    {feed.url}
+                  </p>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  {feed.category_name && (
+                    <span
+                      class="text-xs px-2 py-0.5 rounded-full font-mono whitespace-nowrap"
+                      style={`background:${feed.category_color}22; color:${feed.category_color}`}
+                    >
+                      {feed.category_name}
+                    </span>
+                  )}
+                  <form method="POST">
+                    <input type="hidden" name="action" value="delete_feed" />
+                    <input type="hidden" name="id" value={feed.id} />
+                    <button
+                      type="submit"
+                      class="text-xs text-muted hover:text-red-400 transition-colors font-mono"
+                      onclick="return confirm('削除しますか？')"
+                    >
+                      削除
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
+  </div>
+</Base>
