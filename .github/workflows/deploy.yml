@@ -22,7 +22,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/rss-reader
+            cd /opt/otesei-rss
             git pull origin main
-            docker compose up -d --build
-            docker image prune -f
+            npm ci
+            npm run build
+            systemctl restart rss-reader
